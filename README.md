@@ -108,22 +108,6 @@ Matplotlib
 Tkinter
 
 
-## 🔧 Installation
-git clone https://github.com/your-username/emotion-detection.git
-cd emotion-detection
-pip install -r requirements.txt
-
-## ▶️ Usage
-
-Generate augmented data
-01_augmentation.ipynb
-
-Train the model
-02_training.ipynb
-
-Run real-time GUI
-03_gui_app.ipynb
-
 ## 📊 Results
 
  Model Accuracy: 83.02%

@@ -26,7 +26,7 @@ It includes:
 
  >Real-time detection GUI
 
-📖 Table of Contents
+## 📖 Table of Contents
 
 >Features
 
@@ -40,7 +40,7 @@ It includes:
 
 >Installation
 
-Usage
+### Usage
 
 Results
 
@@ -48,21 +48,21 @@ Future Improvements
 
 License
 
-✨ Features
+## ✨ Features
 
-🔍 Real-time webcam emotion detection
+ Real-time emotion detection
 
-🧠 Custom CNN trained on augmented dataset
+ Custom CNN trained on augmented dataset
 
-📈 Confusion matrix & accuracy visualization
+ Confusion matrix & accuracy visualization
 
-🎨 GUI interface using Tkinter
+ GUI interface using Tkinter
 
-📦 Data augmentation pipeline
+ Data augmentation pipeline
 
-📊 Per-class accuracy calculations
+ Per-class accuracy calculations
 
-📸 Screenshots
+## 📸 Screenshots
 
 Before augmentation:
 <img width="1189" height="690" alt="image" src="https://github.com/user-attachments/assets/b4b0855f-fc5c-4b30-99af-b051c33f7a79" />
@@ -71,7 +71,7 @@ After augmentation:
 <img width="989" height="590" alt="image" src="https://github.com/user-attachments/assets/f7dfebf1-f0bc-428e-9ac1-98a070c05a88" />
 
 
-🧠 Model Architecture
+## 🧠 Model Architecture
 
 Conv2D + ReLU
 
@@ -91,7 +91,7 @@ EarlyStopping
 
 ReduceLROnPlateau
 
-🛠 Tech Stack
+## 🛠 Tech Stack
 
 Python
 
@@ -108,12 +108,12 @@ Matplotlib
 Tkinter
 
 
-🔧 Installation
+## 🔧 Installation
 git clone https://github.com/your-username/emotion-detection.git
 cd emotion-detection
 pip install -r requirements.txt
 
-▶️ Usage
+## ▶️ Usage
 
 Generate augmented data
 01_augmentation.ipynb
@@ -124,7 +124,7 @@ Train the model
 Run real-time GUI
 03_gui_app.ipynb
 
-📊 Results
+## 📊 Results
 
  Model Accuracy: 83.02%
 <img width="852" height="690" alt="image" src="https://github.com/user-attachments/assets/9e59c019-58c8-430a-8f39-84aec7a21235" />

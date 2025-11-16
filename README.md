@@ -134,11 +134,17 @@ Run real-time GUI
 <img width="1189" height="390" alt="image" src="https://github.com/user-attachments/assets/1a484599-223f-4df5-ae9f-9979908ab61e" />
 
 > Accuracy 76.08% for <angry>
+
 > Accuracy 96.82% for <disgust>
+
 > Accuracy 72.00% for <fear>
+
 > Accuracy 92.67% for <happy>
+
 > Accuracy 80.90% for <neutral>
+
 > Accuracy 71.72% for <sad>
+
 > Accuracy 91.41% for <surprise>
 
 

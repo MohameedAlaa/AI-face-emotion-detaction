@@ -148,7 +148,7 @@ Run real-time GUI
 > Accuracy 91.41% for <surprise>
 
 
-🚀 Future Improvements
+## 🚀 Future Improvements
 
 Use MobileNetV2 or EfficientNet
 
@@ -158,6 +158,6 @@ Convert to TensorFlow Lite
 
 Multi-face emotion detection
 
-📄 License
+## 📄 License
 
 This project is licensed under the MIT License.

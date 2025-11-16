@@ -1,7 +1,1 @@
-project/"C:\Users\moham\OneDrive\Desktop\Project-1\project"
-# In your cloned repo directory:
-git pull origin main   # Make sure you are up to date
-rm -r Project          # Remove the file or directory
-git add .              # Stage the deletion
-git commit -m "Delete Project file/directory"
-git push origin main   # Push the commit to GitHub
+

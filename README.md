@@ -1,4 +1,4 @@
-AI Facial Emotion Detection System
+# AI Facial Emotion Detection System
 
 
 
@@ -9,36 +9,36 @@ AI Facial Emotion Detection System
 
 
 
-📌 Overview
+ ## 📌 Overview
 
 This project is a complete AI-powered Facial Emotion Detection system built using Deep Learning, Computer Vision, and a custom CNN model.
 The system can recognize emotions in real-time from webcam input and classify them into:
 
-Angry, Disgust, Fear, Happy, Neutral, Sad, Surprise
+(Angry, Disgust, Fear, Happy, Neutral, Sad, Surprise)
 
 It includes:
 
-Dataset loading & preprocessing
+ >Dataset loading & preprocessing
 
-CNN model training
+ >CNN model training
 
-Data augmentation module
+ >Data augmentation module
 
-Real-time detection GUI
+ >Real-time detection GUI
 
 📖 Table of Contents
 
-Features
+>Features
 
-Screenshots
+>Screenshots
 
-Model Architecture
+>Model Architecture
 
-Tech Stack
+>Tech Stack
 
-Project Structure
+>Project Structure
 
-Installation
+>Installation
 
 Usage
 

@@ -64,7 +64,7 @@ License
 
 📸 Screenshots
 
-Befor augmentation:
+Before augmentation:
 <img width="1189" height="690" alt="image" src="https://github.com/user-attachments/assets/b4b0855f-fc5c-4b30-99af-b051c33f7a79" />
 
 After augmentation:

@@ -4,7 +4,6 @@ import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
 import pandas as pd
-import time
 
 # ==============================
 # Page Config
@@ -36,7 +35,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================
-# Load Model (Optimized)
+# Load Model
 # ==============================
 @st.cache_resource
 def load_emotion_model():
@@ -55,6 +54,7 @@ emoji_dict = {
     "Neutral": "😐"
 }
 
+# Load Haar Cascade
 face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
 
 # ==============================
@@ -75,29 +75,30 @@ uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
-    img = np.array(image)
+    img = np.array(image.convert("RGB"))  # Ensure 3 channels
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     faces = face_cascade.detectMultiScale(gray, 1.3, 5)
 
     if len(faces) == 0:
         st.warning("No face detected!")
     else:
+        emotions_detected = []
         for (x, y, w, h) in faces:
             face = gray[y:y+h, x:x+w]
             face = cv2.resize(face, (48, 48))
             face = face / 255.0
             face = np.reshape(face, (1, 48, 48, 1))
 
-            prediction = model.predict(face)
+            prediction = model.predict(face, verbose=0)
             confidence = np.max(prediction)
             emotion = emotion_labels[np.argmax(prediction)]
 
             if confidence >= confidence_threshold:
-                cv2.rectangle(img, (x,y), (x+w,y+h), (0,255,0), 2)
-                cv2.putText(img, emotion, (x, y-10),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.9, (0,255,0), 2)
+                cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                cv2.putText(img, f"{emoji_dict[emotion]} {emotion}", (x, y-10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                emotions_detected.append((emotion, confidence))
 
         col1, col2 = st.columns(2)
 
@@ -105,12 +106,14 @@ if uploaded_file is not None:
             st.image(img, caption="Detected Image", use_column_width=True)
 
         with col2:
-            st.markdown(f"""
-            <div class="emotion-box">
-            <h2>{emoji_dict[emotion]} {emotion}</h2>
-            <p>Confidence: {confidence:.2f}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            if emotions_detected:
+                top_emotion, top_conf = max(emotions_detected, key=lambda x: x[1])
+                st.markdown(f"""
+                <div class="emotion-box">
+                <h2>{emoji_dict[top_emotion]} {top_emotion}</h2>
+                <p>Confidence: {top_conf:.2f}</p>
+                </div>
+                """, unsafe_allow_html=True)
 
-            df = pd.DataFrame(prediction[0], index=emotion_labels, columns=["Confidence"])
-            st.bar_chart(df)
+                df = pd.DataFrame(prediction[0], index=emotion_labels, columns=["Confidence"])
+                st.bar_chart(df)

@@ -7,6 +7,8 @@ import numpy as np
 from tensorflow.keras.models import load_model  # type: ignore[import]
 from PIL import Image
 import pandas as pd
+from datetime import datetime
+from datetime import datetime
 
 # When executed directly with python, Streamlit lacks a ScriptRunContext which
 # causes many warnings. Detect that case and print a helpful message instead.
@@ -31,19 +33,74 @@ st.set_page_config(
 # ==============================
 st.markdown("""
 <style>
+/* Main Title */
 .big-title {
-    font-size:40px !important;
-    font-weight:700;
-    color:#4A90E2;
+    font-size:48px !important;
+    font-weight:800;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    margin-bottom: 10px;
 }
+
+/* Subtitle */
+.subtitle {
+    font-size:18px;
+    color: #9CA3AF;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+/* Emotion Result Box */
 .emotion-box {
-    padding:20px;
-    border-radius:15px;
+    padding:30px;
+    border-radius:20px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     text-align:center;
-    font-size:20px;
+    font-size:24px;
     color:#FFFFFF;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    margin-bottom: 20px;
+}
+
+.emotion-box h2 {
+    font-size: 36px;
+    margin: 10px 0;
+    font-weight: 700;
+}
+
+.emotion-box p {
+    font-size: 18px;
+    margin: 5px 0;
+    opacity: 0.95;
+}
+
+/* Chart Title */
+.chart-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #FFFFFF;
+    text-align: center;
+    margin: 20px 0 10px 0;
+}
+
+/* Upload Section */
+div[data-testid="stFileUploader"] {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    padding: 20px;
+    border-radius: 15px;
+    border: 2px dashed #667eea;
+}
+
+/* Image Caption */
+div[data-testid="caption"] {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #667eea;
+    margin-top: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -73,21 +130,39 @@ emoji_dict = {
 cascade_path = os.path.join(os.path.dirname(__file__), "haarcascade_frontalface_default.xml")
 face_cascade = cv2.CascadeClassifier(cascade_path)
 
+# Set confidence threshold
+confidence_threshold = 0.5
+
 # ==============================
-# Sidebar
+# Feedback Save Function
 # ==============================
-st.sidebar.title("⚙️ Settings")
-confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.5)
-st.sidebar.markdown("---")
-st.sidebar.info("Built by Mohamed Alaa 🚀\nAI & Machine Learning Developer")
+def save_feedback(predicted_emotion, confidence, correct_emotion):
+    """Save feedback to CSV for model improvement"""
+    feedback_file = os.path.join(os.path.dirname(__file__), "feedback_log.csv")
+    
+    feedback_data = {
+        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'predicted_emotion': predicted_emotion,
+        'confidence': f"{confidence:.4f}",
+        'corrected_emotion': correct_emotion
+    }
+    
+    if os.path.exists(feedback_file):
+        df = pd.read_csv(feedback_file)
+        df = pd.concat([df, pd.DataFrame([feedback_data])], ignore_index=True)
+    else:
+        df = pd.DataFrame([feedback_data])
+    
+    df.to_csv(feedback_file, index=False)
+    return True
 
 # ==============================
 # Main UI
 # ==============================
 st.markdown('<p class="big-title">🎭 AI Face Emotion Detection</p>', unsafe_allow_html=True)
-st.write("Upload an image and let AI detect the emotion in real time.")
+st.markdown('<p class="subtitle">Upload an image and let AI detect emotions in real-time with advanced deep learning</p>', unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
@@ -119,7 +194,7 @@ if uploaded_file is not None:
         col1, col2 = st.columns(2)
 
         with col1:
-            st.image(img, caption="Detected Image", use_column_width=True)
+            st.image(img, caption="✨ Detected Image", use_container_width=True)
 
         with col2:
             if emotions_detected:
@@ -127,13 +202,48 @@ if uploaded_file is not None:
                 st.markdown(f"""
                 <div class="emotion-box">
                 <h2>{emoji_dict[top_emotion]} {top_emotion}</h2>
-                <p>Confidence: {top_conf:.2f}</p>
+                <p>Confidence: {top_conf:.2%}</p>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # Feedback Section
+                st.markdown("---")
+                st.markdown("<h3 style='text-align: center; color: #667eea;'>Was the result correct?</h3>", unsafe_allow_html=True)
+                
+                col_yes, col_no = st.columns(2)
+                
+                with col_yes:
+                    if st.button("✅ Yes, Correct!", use_container_width=True, key="correct_btn"):
+                        save_feedback(top_emotion, top_conf, top_emotion)
+                        st.success("✨ Thank you! Your feedback helps us improve the model.")
+                
+                with col_no:
+                    if st.button("❌ No, Incorrect", use_container_width=True, key="incorrect_btn"):
+                        st.session_state.show_feedback = True
+                
+                # Show correction options if user said it was incorrect
+                if st.session_state.get('show_feedback', False):
+                    st.markdown("<h4 style='color: #764ba2;'>What is the correct emotion?</h4>", unsafe_allow_html=True)
+                    
+                    correct_emotion = st.selectbox(
+                        "Select the correct emotion:",
+                        emotion_labels,
+                        key="emotion_correction"
+                    )
+                    
+                    if st.button("💾 Submit Correction", use_container_width=True, key="submit_feedback"):
+                        # Save feedback to CSV for model training
+                        save_feedback(top_emotion, top_conf, correct_emotion)
+                        st.success(f"✨ Thank you! Your correction has been saved.\n\n📊 Correction: {emoji_dict[top_emotion]} {top_emotion} → {emoji_dict[correct_emotion]} {correct_emotion}\n\nThis data will help improve our model!")
+                        st.session_state.show_feedback = False
+                
+                # Show feedback status
+                feedback_file = os.path.join(os.path.dirname(__file__), "feedback_log.csv")
+                if os.path.exists(feedback_file):
+                    feedback_df = pd.read_csv(feedback_file)
+                    st.markdown(f"<p style='text-align: center; color: #667eea; font-size: 12px;'>📈 Model improved with {len(feedback_df)} corrections so far</p>", unsafe_allow_html=True)
 
-                df = pd.DataFrame(prediction[0], index=emotion_labels, columns=["Confidence"])
-                st.bar_chart(df)
 
 # To run the app:
-    # 1) Open PowerShell and navigate to the project directory
-    # 2) Run: streamlit run project/app.py
+# 1) Open PowerShell and navigate to the project directory
+# 2) Run: streamlit run project/app.py

@@ -8,3 +8,4 @@ numpy<2
 # lock pandas and Pillow to versions compatible with streamlit
 pandas==2.3.3
 Pillow==12.1.1
+matplotlib==3.8.2

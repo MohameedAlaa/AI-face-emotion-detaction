@@ -37,11 +37,13 @@ st.markdown("""
     color:#4A90E2;
 }
 .emotion-box {
-    padding:15px;
-    border-radius:10px;
-    background-color:#F0F2F6;
+    padding:20px;
+    border-radius:15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     text-align:center;
     font-size:20px;
+    color:#FFFFFF;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -131,3 +133,7 @@ if uploaded_file is not None:
 
                 df = pd.DataFrame(prediction[0], index=emotion_labels, columns=["Confidence"])
                 st.bar_chart(df)
+
+# To run the app:
+    # 1) Open PowerShell and navigate to the project directory
+    # 2) Run: streamlit run project/app.py

@@ -8,7 +8,6 @@ from tensorflow.keras.models import load_model  # type: ignore[import]
 from PIL import Image
 import pandas as pd
 from datetime import datetime
-from datetime import datetime
 
 # When executed directly with python, Streamlit lacks a ScriptRunContext which
 # causes many warnings. Detect that case and print a helpful message instead.
@@ -136,15 +135,30 @@ confidence_threshold = 0.5
 # ==============================
 # Feedback Save Function
 # ==============================
-def save_feedback(predicted_emotion, confidence, correct_emotion):
-    """Save feedback to CSV for model improvement"""
+def save_feedback(predicted_emotion, confidence, correct_emotion, face_image):
+    """Save feedback and the face image for model improvement"""
+    # Create feedback directory
+    feedback_dir = os.path.join(os.path.dirname(__file__), "feedback_images")
+    if not os.path.exists(feedback_dir):
+        os.makedirs(feedback_dir)
+    
+    # Generate unique filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    image_filename = f"{timestamp}_{predicted_emotion}_to_{correct_emotion}.png"
+    image_path = os.path.join(feedback_dir, image_filename)
+    
+    # Save face image
+    cv2.imwrite(image_path, face_image)
+    
+    # Save feedback to CSV
     feedback_file = os.path.join(os.path.dirname(__file__), "feedback_log.csv")
     
     feedback_data = {
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'predicted_emotion': predicted_emotion,
         'confidence': f"{confidence:.4f}",
-        'corrected_emotion': correct_emotion
+        'corrected_emotion': correct_emotion,
+        'image_path': image_filename
     }
     
     if os.path.exists(feedback_file):
@@ -175,13 +189,14 @@ if uploaded_file is not None:
         st.warning("No face detected!")
     else:
         emotions_detected = []
+        face_images = {}  # Store face images for feedback
         for (x, y, w, h) in faces:
             face = gray[y:y+h, x:x+w]
             face = cv2.resize(face, (48, 48))
             face = face / 255.0
-            face = np.reshape(face, (1, 48, 48, 1))
+            face_for_model = np.reshape(face, (1, 48, 48, 1))
 
-            prediction = model.predict(face, verbose=0)
+            prediction = model.predict(face_for_model, verbose=0)
             confidence = np.max(prediction)
             emotion = emotion_labels[np.argmax(prediction)]
 
@@ -190,6 +205,8 @@ if uploaded_file is not None:
                 cv2.putText(img, f"{emoji_dict[emotion]} {emotion}", (x, y-10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
                 emotions_detected.append((emotion, confidence))
+                # Store the original 48x48 grayscale face for saving
+                face_images[emotion] = (face * 255).astype(np.uint8)
 
         col1, col2 = st.columns(2)
 
@@ -214,7 +231,7 @@ if uploaded_file is not None:
                 
                 with col_yes:
                     if st.button("✅ Yes, Correct!", use_container_width=True, key="correct_btn"):
-                        save_feedback(top_emotion, top_conf, top_emotion)
+                        save_feedback(top_emotion, top_conf, top_emotion, face_images.get(top_emotion))
                         st.success("✨ Thank you! Your feedback helps us improve the model.")
                 
                 with col_no:
@@ -232,9 +249,9 @@ if uploaded_file is not None:
                     )
                     
                     if st.button("💾 Submit Correction", use_container_width=True, key="submit_feedback"):
-                        # Save feedback to CSV for model training
-                        save_feedback(top_emotion, top_conf, correct_emotion)
-                        st.success(f"✨ Thank you! Your correction has been saved.\n\n📊 Correction: {emoji_dict[top_emotion]} {top_emotion} → {emoji_dict[correct_emotion]} {correct_emotion}\n\nThis data will help improve our model!")
+                        # Save feedback and image for model training
+                        save_feedback(top_emotion, top_conf, correct_emotion, face_images.get(top_emotion))
+                        st.success(f"✨ Thank you! Your correction has been saved.\n\n📊 Correction: {emoji_dict[top_emotion]} {top_emotion} → {emoji_dict[correct_emotion]} {correct_emotion}\n\n📷 Image saved for model retraining!")
                         st.session_state.show_feedback = False
                 
                 # Show feedback status

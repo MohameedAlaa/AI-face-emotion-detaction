@@ -55,6 +55,7 @@ def load_emotion_model():
      model_path = os.path.join(base_dir, "best_emotion_model.keras")
      return load_model(model_path)
 
+model = load_emotion_model()
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 emoji_dict = {
     "Angry": "😠",

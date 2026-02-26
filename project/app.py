@@ -1,9 +1,21 @@
+import os
+import sys
 import streamlit as st
-import cv2
+from streamlit.runtime.scriptrunner import get_script_run_ctx
+import cv2  # type: ignore[import]
 import numpy as np
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model  # type: ignore[import]
 from PIL import Image
 import pandas as pd
+
+# When executed directly with python, Streamlit lacks a ScriptRunContext which
+# causes many warnings. Detect that case and print a helpful message instead.
+ctx = get_script_run_ctx()
+if ctx is None:
+    sys.stderr.write("ERROR: This application must be started with `streamlit run project/app.py`\n")
+    sys.stderr.write("For example:\n    streamlit run project/app.py\n")
+    sys.exit(1)
+
 
 # ==============================
 # Page Config
@@ -39,9 +51,9 @@ st.markdown("""
 # ==============================
 @st.cache_resource
 def load_emotion_model():
-    return load_model("best_emotion_model.keras")
-
-model = load_emotion_model()
+     base_dir = os.path.dirname(__file__)
+     model_path = os.path.join(base_dir, "best_emotion_model.keras")
+     return load_model(model_path)
 
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 emoji_dict = {
@@ -55,7 +67,8 @@ emoji_dict = {
 }
 
 # Load Haar Cascade
-face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+cascade_path = os.path.join(os.path.dirname(__file__), "haarcascade_frontalface_default.xml")
+face_cascade = cv2.CascadeClassifier(cascade_path)
 
 # ==============================
 # Sidebar

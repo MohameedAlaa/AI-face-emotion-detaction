@@ -1,6 +1,10 @@
-streamlit==1.32.2
+# pinned to 1.54.0 to satisfy tensorflow-cpu dependencies
+streamlit==1.54.0
 opencv-python-headless==4.9.0.80
-tensorflow-cpu==2.21.0
-numpy
-pandas
-Pillow
+# tensorflow-cpu 2.21.0 is not yet available; use the latest 2.20.x release
+tensorflow-cpu==2.20.0
+# numpy 2.x breaks many ML packages (opencv, tensorflow); stay below 2
+numpy<2
+# lock pandas and Pillow to versions compatible with streamlit
+pandas==2.3.3
+Pillow==12.1.1

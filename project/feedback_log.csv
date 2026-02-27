@@ -34,3 +34,4 @@ timestamp,predicted_emotion,confidence,corrected_emotion,image_path,image_hash
 2026-02-27 04:18:41,Happy,1.0,Happy,20260227_041841_355301_Happy_to_Happy.png,92d3805b7b33f610bc4ea04fba393463
 2026-02-27 04:18:48,Happy,1.0,Happy,20260227_041848_236533_Happy_to_Happy.png,397651c2ac60d8b2eb8bc639449e4489
 2026-02-27 04:27:47,Sad,0.8606,Neutral,20260227_042747_166662_Sad_to_Neutral.png,a750afa557b5fa52bb9982dcdc739544
+2026-02-27 04:29:10,Fear,0.9731,Surprise,20260227_042910_194235_Fear_to_Surprise.png,93c058e6f59e1b1bc0761aa588c4801d

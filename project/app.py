@@ -137,6 +137,10 @@ confidence_threshold = 0.5
 # ==============================
 def save_feedback(predicted_emotion, confidence, correct_emotion, face_image):
     """Save feedback and the face image for model improvement"""
+    # Skip saving to CSV if the prediction was correct (predicted == corrected)
+    if predicted_emotion == correct_emotion:
+        return True
+    
     # Create feedback directory
     feedback_dir = os.path.join(os.path.dirname(__file__), "feedback_images")
     if not os.path.exists(feedback_dir):

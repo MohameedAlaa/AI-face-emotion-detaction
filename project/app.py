@@ -245,7 +245,6 @@ if uploaded_file is not None:
                         if st.button("✅ Yes, Correct!", use_container_width=True, key="correct_btn"):
                             save_feedback(top_emotion, top_conf, top_emotion, face_images.get(top_emotion))
                             st.session_state.feedback_submitted = True
-                            st.success("✨ Thank you! Your feedback helps us improve the model.")
                             st.rerun()
                     
                     with col_no:
@@ -265,10 +264,30 @@ if uploaded_file is not None:
                         if st.button("💾 Submit Correction", use_container_width=True, key="submit_feedback"):
                             # Save feedback and image for model training
                             save_feedback(top_emotion, top_conf, correct_emotion, face_images.get(top_emotion))
-                            st.success(f"✨ Thank you! Your correction has been saved.\n\n📊 Correction: {emoji_dict[top_emotion]} {top_emotion} → {emoji_dict[correct_emotion]} {correct_emotion}\n\n📷 Image saved for model retraining!")
+                            st.session_state.correction_details = f"{emoji_dict[top_emotion]} {top_emotion} → {emoji_dict[correct_emotion]} {correct_emotion}"
                             st.session_state.show_feedback = False
                             st.session_state.feedback_submitted = True
                             st.rerun()
+                else:
+                    # Show thank you message after feedback is submitted
+                    st.markdown("---")
+                    if st.session_state.get('correction_details'):
+                        st.markdown(f"""
+                        <div style='padding: 25px; border-radius: 15px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); text-align: center; color: white; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);'>
+                            <h3 style='margin: 0 0 10px 0; font-size: 24px;'>✨ Thank You for Your Feedback!</h3>
+                            <p style='margin: 5px 0; font-size: 16px; opacity: 0.95;'>Your correction has been saved and will help improve our AI model.</p>
+                            <p style='margin: 10px 0 0 0; font-size: 18px; font-weight: 600;'>📊 {st.session_state.correction_details}</p>
+                            <p style='margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;'>📷 Image saved for model retraining</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown("""
+                        <div style='padding: 25px; border-radius: 15px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); text-align: center; color: white; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);'>
+                            <h3 style='margin: 0 0 10px 0; font-size: 24px;'>✨ Thank You for Your Feedback!</h3>
+                            <p style='margin: 5px 0; font-size: 16px; opacity: 0.95;'>Your feedback helps us continuously improve the accuracy of our AI model.</p>
+                            <p style='margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;'>🚀 Every contribution makes our emotion detection smarter!</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                 
                 # Show feedback status
                 feedback_file = os.path.join(os.path.dirname(__file__), "feedback_log.csv")

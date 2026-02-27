@@ -48,6 +48,11 @@ def load_feedback_data():
         image_filename = str(row['image_path']).strip()
         correct_emotion = str(row['corrected_emotion']).strip()
         
+        # Skip if emotion label is not valid
+        if correct_emotion not in EMOTION_LABELS:
+            print(f"  ⚠️  Skipping row {idx}: Invalid emotion '{correct_emotion}'")
+            continue
+        
         image_path = os.path.join(FEEDBACK_IMAGES_DIR, image_filename)
         
         if os.path.exists(image_path):

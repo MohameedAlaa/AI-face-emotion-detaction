@@ -8,6 +8,9 @@ from tensorflow.keras.models import load_model  # type: ignore[import]
 from PIL import Image
 import pandas as pd
 from datetime import datetime
+import hashlib
+import time
+import urllib.request
 
 # When executed directly with python, Streamlit lacks a ScriptRunContext which
 # causes many warnings. Detect that case and print a helpful message instead.
@@ -110,7 +113,7 @@ div[data-testid="caption"] {
 @st.cache_resource
 def load_emotion_model():
      base_dir = os.path.dirname(__file__)
-     model_path = os.path.join(base_dir, "best_emotion_model.keras")
+     model_path = os.path.join(base_dir, "best_emotion_model_retrained.keras")
      return load_model(model_path)
 
 model = load_emotion_model()
@@ -125,26 +128,78 @@ emoji_dict = {
     "Neutral": "😐"
 }
 
-# Load Haar Cascade
-cascade_path = os.path.join(os.path.dirname(__file__), "haarcascade_frontalface_default.xml")
-face_cascade = cv2.CascadeClassifier(cascade_path)
+# Face detector files (OpenCV DNN)
+base_dir = os.path.dirname(__file__)
+dnn_prototxt_path = os.path.join(base_dir, "opencv_face_detector.prototxt")
+dnn_model_path = os.path.join(base_dir, "res10_300x300_ssd_iter_140000.caffemodel")
 
-# Set confidence threshold
-confidence_threshold = 0.5
+# DNN model download sources
+dnn_prototxt_url = "https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt"
+dnn_model_url = "https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20170830/res10_300x300_ssd_iter_140000.caffemodel"
+
+# Load face detector (DNN preferred, Haar fallback)
+def get_face_detector():
+    """Get face detector, preferring DNN if files exist, falling back to Haar."""
+    if os.path.exists(dnn_prototxt_path) and os.path.exists(dnn_model_path):
+        try:
+            net = cv2.dnn.readNetFromCaffe(dnn_prototxt_path, dnn_model_path)
+            return "dnn", net
+        except Exception:
+            pass  # Fall through to Haar if DNN fails
+
+    cascade_path = os.path.join(base_dir, "haarcascade_frontalface_default.xml")
+    haar_cascade = cv2.CascadeClassifier(cascade_path)
+    return "haar", haar_cascade
+
+# Load initial detector (will be re-checked after download)
+face_detector_type, face_detector = get_face_detector()
+
+# DNN confidence threshold
+dnn_confidence_threshold = 0.5
+
+# Emotion confidence threshold (lowered to show more results)
+emotion_confidence_threshold = 0.3
+def ensure_dnn_files():
+    """Download DNN face detector files if missing."""
+    if os.path.exists(dnn_prototxt_path) and os.path.exists(dnn_model_path):
+        return True
+
+    if st.session_state.get("dnn_download_attempted", False):
+        return False
+
+    st.session_state.dnn_download_attempted = True
+    try:
+        with st.spinner("Downloading face detector files..."):
+            if not os.path.exists(dnn_prototxt_path):
+                urllib.request.urlretrieve(dnn_prototxt_url, dnn_prototxt_path)
+            if not os.path.exists(dnn_model_path):
+                urllib.request.urlretrieve(dnn_model_url, dnn_model_path)
+        return True
+    except Exception:
+        return False
 
 # ==============================
 # Feedback Save Function
 # ==============================
 def save_feedback(predicted_emotion, confidence, correct_emotion, face_image):
     """Save feedback and the face image for model improvement"""
-    # Skip saving to CSV if the prediction was correct (predicted == corrected)
-    if predicted_emotion == correct_emotion:
-        return True
+    # Calculate hash of the image to check for duplicates
+    image_hash = hashlib.md5(face_image.tobytes()).hexdigest()
     
     # Create feedback directory
     feedback_dir = os.path.join(os.path.dirname(__file__), "feedback_images")
     if not os.path.exists(feedback_dir):
         os.makedirs(feedback_dir)
+    
+    # Check if this image hash already exists in feedback log
+    feedback_file = os.path.join(os.path.dirname(__file__), "feedback_log.csv")
+    if os.path.exists(feedback_file):
+        try:
+            df = pd.read_csv(feedback_file)
+            if 'image_hash' in df.columns and image_hash in df['image_hash'].values:
+                return False  # Duplicate image, skip saving
+        except (PermissionError, pd.errors.ParserError):
+            pass  # Continue with saving even if we can't read the file
     
     # Generate unique filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -154,24 +209,34 @@ def save_feedback(predicted_emotion, confidence, correct_emotion, face_image):
     # Save face image
     cv2.imwrite(image_path, face_image)
     
-    # Save feedback to CSV
-    feedback_file = os.path.join(os.path.dirname(__file__), "feedback_log.csv")
-    
+    # Save feedback to CSV with image hash (with retry logic)
     feedback_data = {
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'predicted_emotion': predicted_emotion,
         'confidence': f"{confidence:.4f}",
         'corrected_emotion': correct_emotion,
-        'image_path': image_filename
+        'image_path': image_filename,
+        'image_hash': image_hash
     }
     
-    if os.path.exists(feedback_file):
-        df = pd.read_csv(feedback_file)
-        df = pd.concat([df, pd.DataFrame([feedback_data])], ignore_index=True)
-    else:
-        df = pd.DataFrame([feedback_data])
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            if os.path.exists(feedback_file):
+                df = pd.read_csv(feedback_file)
+                df = pd.concat([df, pd.DataFrame([feedback_data])], ignore_index=True)
+            else:
+                df = pd.DataFrame([feedback_data])
+            
+            df.to_csv(feedback_file, index=False)
+            return True
+        except PermissionError:
+            if attempt < max_retries - 1:
+                time.sleep(0.5)  # Wait 500ms before retry
+            else:
+                st.warning("⚠️ Feedback image saved, but couldn't update log (OneDrive sync issue). Retrying...")
+                return True  # Return True since image was saved successfully
     
-    df.to_csv(feedback_file, index=False)
     return True
 
 # ==============================
@@ -194,7 +259,39 @@ if uploaded_file is not None:
     img = np.array(image.convert("RGB"))  # Ensure 3 channels
 
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+    if face_detector_type != "dnn":
+        if ensure_dnn_files():
+            face_detector_type, face_detector = get_face_detector()
+
+    if face_detector_type == "dnn":
+        img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        (h, w) = img_bgr.shape[:2]
+        blob = cv2.dnn.blobFromImage(img_bgr, 1.0, (300, 300), (104.0, 177.0, 123.0))
+        face_detector.setInput(blob)
+        detections = face_detector.forward()
+        faces = []
+        for i in range(detections.shape[2]):
+            confidence = float(detections[0, 0, i, 2])
+            if confidence < dnn_confidence_threshold:
+                continue
+            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+            (x1, y1, x2, y2) = box.astype("int")
+            x1 = max(0, x1)
+            y1 = max(0, y1)
+            x2 = min(w - 1, x2)
+            y2 = min(h - 1, y2)
+            if x2 > x1 and y2 > y1:
+                faces.append((x1, y1, x2 - x1, y2 - y1))
+    else:
+        if not st.session_state.get("dnn_files_missing_warned", False):
+            st.info(
+                "For better face detection, add these files to the project folder: "
+                "opencv_face_detector.prototxt and res10_300x300_ssd_iter_140000.caffemodel. "
+                "Using Haar cascade fallback for now."
+            )
+            st.session_state.dnn_files_missing_warned = True
+        faces = face_detector.detectMultiScale(gray, 1.3, 5)
 
     if len(faces) == 0:
         st.warning("No face detected!")
@@ -211,7 +308,7 @@ if uploaded_file is not None:
             confidence = np.max(prediction)
             emotion = emotion_labels[np.argmax(prediction)]
 
-            if confidence >= confidence_threshold:
+            if confidence >= emotion_confidence_threshold:
                 cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
                 cv2.putText(img, f"{emoji_dict[emotion]} {emotion}", (x, y-10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
@@ -245,6 +342,7 @@ if uploaded_file is not None:
                         if st.button("✅ Yes, Correct!", use_container_width=True, key="correct_btn"):
                             save_feedback(top_emotion, top_conf, top_emotion, face_images.get(top_emotion))
                             st.session_state.feedback_submitted = True
+                            st.session_state.is_correction = False
                             st.rerun()
                     
                     with col_no:
@@ -267,25 +365,26 @@ if uploaded_file is not None:
                             st.session_state.correction_details = f"{emoji_dict[top_emotion]} {top_emotion} → {emoji_dict[correct_emotion]} {correct_emotion}"
                             st.session_state.show_feedback = False
                             st.session_state.feedback_submitted = True
+                            st.session_state.is_correction = True
                             st.rerun()
                 else:
-                    # Show thank you message after feedback is submitted
-                    st.markdown("---")
-                    if st.session_state.get('correction_details'):
-                        st.markdown(f"""
-                        <div style='padding: 25px; border-radius: 15px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); text-align: center; color: white; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);'>
-                            <h3 style='margin: 0 0 10px 0; font-size: 24px;'>✨ Thank You for Your Feedback!</h3>
-                            <p style='margin: 5px 0; font-size: 16px; opacity: 0.95;'>Your correction has been saved and will help improve our AI model.</p>
-                            <p style='margin: 10px 0 0 0; font-size: 18px; font-weight: 600;'>📊 {st.session_state.correction_details}</p>
-                            <p style='margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;'>📷 Image saved for model retraining</p>
-                        </div>
-                        """, unsafe_allow_html=True)
+                    # Show a thank you message based on feedback type
+                    if st.session_state.get('is_correction', False):
+                        st.markdown("---")
+                        if st.session_state.get('correction_details'):
+                            st.markdown(f"""
+                            <div style='padding: 25px; border-radius: 15px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); text-align: center; color: white; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);'>
+                                <h3 style='margin: 0 0 10px 0; font-size: 24px;'>✨ Thank You for Your Feedback!</h3>
+                                <p style='margin: 5px 0; font-size: 16px; opacity: 0.95;'>Your correction has been saved and will help improve our AI model.</p>
+                                <p style='margin: 10px 0 0 0; font-size: 18px; font-weight: 600;'>📊 {st.session_state.correction_details}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
                     else:
+                        st.markdown("---")
                         st.markdown("""
                         <div style='padding: 25px; border-radius: 15px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); text-align: center; color: white; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);'>
-                            <h3 style='margin: 0 0 10px 0; font-size: 24px;'>✨ Thank You for Your Feedback!</h3>
-                            <p style='margin: 5px 0; font-size: 16px; opacity: 0.95;'>Your feedback helps us continuously improve the accuracy of our AI model.</p>
-                            <p style='margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;'>🚀 Every contribution makes our emotion detection smarter!</p>
+                            <h3 style='margin: 0 0 10px 0; font-size: 24px;'>Thank you for using our app!</h3>
+                            <p style='margin: 5px 0; font-size: 16px; opacity: 0.95;'>We appreciate your support and look forward to providing you with even better AI-powered insights.</p>
                         </div>
                         """, unsafe_allow_html=True)
                 

@@ -182,6 +182,13 @@ st.markdown('<p class="subtitle">Upload an image and let AI detect emotions in r
 
 uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "png", "jpeg"])
 
+# Reset feedback state when a new file is uploaded
+if 'last_uploaded_file' not in st.session_state:
+    st.session_state.last_uploaded_file = None
+if uploaded_file != st.session_state.last_uploaded_file:
+    st.session_state.last_uploaded_file = uploaded_file
+    st.session_state.feedback_submitted = False
+
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
     img = np.array(image.convert("RGB"))  # Ensure 3 channels
@@ -227,36 +234,41 @@ if uploaded_file is not None:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Feedback Section
-                st.markdown("---")
-                st.markdown("<h3 style='text-align: center; color: #667eea;'>Was the result correct?</h3>", unsafe_allow_html=True)
-                
-                col_yes, col_no = st.columns(2)
-                
-                with col_yes:
-                    if st.button("✅ Yes, Correct!", use_container_width=True, key="correct_btn"):
-                        save_feedback(top_emotion, top_conf, top_emotion, face_images.get(top_emotion))
-                        st.success("✨ Thank you! Your feedback helps us improve the model.")
-                
-                with col_no:
-                    if st.button("❌ No, Incorrect", use_container_width=True, key="incorrect_btn"):
-                        st.session_state.show_feedback = True
-                
-                # Show correction options if user said it was incorrect
-                if st.session_state.get('show_feedback', False):
-                    st.markdown("<h4 style='color: #764ba2;'>What is the correct emotion?</h4>", unsafe_allow_html=True)
+                # Feedback Section - only show if feedback hasn't been submitted yet
+                if not st.session_state.get('feedback_submitted', False):
+                    st.markdown("---")
+                    st.markdown("<h3 style='text-align: center; color: #667eea;'>Was the result correct?</h3>", unsafe_allow_html=True)
                     
-                    correct_emotion = st.selectbox(
-                        "Select the correct emotion:",
-                        emotion_labels,
-                        key="emotion_correction"
-                    )
+                    col_yes, col_no = st.columns(2)
                     
-                    if st.button("💾 Submit Correction", use_container_width=True, key="submit_feedback"):
-                        # Save feedback and image for model training
-                        save_feedback(top_emotion, top_conf, correct_emotion, face_images.get(top_emotion))
-                        st.success(f"✨ Thank you! Your correction has been saved.\n\n📊 Correction: {emoji_dict[top_emotion]} {top_emotion} → {emoji_dict[correct_emotion]} {correct_emotion}\n\n📷 Image saved for model retraining!")
-                        st.session_state.show_feedback = False
+                    with col_yes:
+                        if st.button("✅ Yes, Correct!", use_container_width=True, key="correct_btn"):
+                            save_feedback(top_emotion, top_conf, top_emotion, face_images.get(top_emotion))
+                            st.session_state.feedback_submitted = True
+                            st.success("✨ Thank you! Your feedback helps us improve the model.")
+                            st.rerun()
+                    
+                    with col_no:
+                        if st.button("❌ No, Incorrect", use_container_width=True, key="incorrect_btn"):
+                            st.session_state.show_feedback = True
+                    
+                    # Show correction options if user said it was incorrect
+                    if st.session_state.get('show_feedback', False):
+                        st.markdown("<h4 style='color: #764ba2;'>What is the correct emotion?</h4>", unsafe_allow_html=True)
+                        
+                        correct_emotion = st.selectbox(
+                            "Select the correct emotion:",
+                            emotion_labels,
+                            key="emotion_correction"
+                        )
+                        
+                        if st.button("💾 Submit Correction", use_container_width=True, key="submit_feedback"):
+                            # Save feedback and image for model training
+                            save_feedback(top_emotion, top_conf, correct_emotion, face_images.get(top_emotion))
+                            st.success(f"✨ Thank you! Your correction has been saved.\n\n📊 Correction: {emoji_dict[top_emotion]} {top_emotion} → {emoji_dict[correct_emotion]} {correct_emotion}\n\n📷 Image saved for model retraining!")
+                            st.session_state.show_feedback = False
+                            st.session_state.feedback_submitted = True
+                            st.rerun()
                 
                 # Show feedback status
                 feedback_file = os.path.join(os.path.dirname(__file__), "feedback_log.csv")

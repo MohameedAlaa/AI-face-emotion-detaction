@@ -113,7 +113,12 @@ div[data-testid="caption"] {
 @st.cache_resource
 def load_emotion_model():
      base_dir = os.path.dirname(__file__)
-     model_path = os.path.join(base_dir, "best_emotion_model_retrained.keras")
+     model_path = os.path.join(base_dir, "best_emotion_model.keras")
+     if not os.path.exists(model_path):
+         raise FileNotFoundError(
+             f"Main model not found: {model_path}. "
+             "Run the retraining notebook promotion step first."
+         )
      return load_model(model_path)
 
 model = load_emotion_model()
@@ -177,6 +182,21 @@ def ensure_dnn_files():
         return True
     except Exception:
         return False
+
+
+def expand_and_clip_box(x, y, w, h, img_width, img_height, pad_ratio=0.18):
+    """Expand a face box by a ratio and clip it to image boundaries."""
+    pad_w = int(w * pad_ratio)
+    pad_h = int(h * pad_ratio)
+
+    x1 = max(0, x - pad_w)
+    y1 = max(0, y - pad_h)
+    x2 = min(img_width - 1, x + w + pad_w)
+    y2 = min(img_height - 1, y + h + pad_h)
+
+    new_w = max(1, x2 - x1)
+    new_h = max(1, y2 - y1)
+    return x1, y1, new_w, new_h
 
 # ==============================
 # Feedback Save Function
@@ -257,6 +277,7 @@ if uploaded_file != st.session_state.last_uploaded_file:
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
     img = np.array(image.convert("RGB"))  # Ensure 3 channels
+    img_h, img_w = img.shape[:2]
 
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
@@ -291,7 +312,12 @@ if uploaded_file is not None:
                 "Using Haar cascade fallback for now."
             )
             st.session_state.dnn_files_missing_warned = True
-        faces = face_detector.detectMultiScale(gray, 1.3, 5)
+        faces = face_detector.detectMultiScale(
+            gray,
+            scaleFactor=1.2,
+            minNeighbors=5,
+            minSize=(40, 40)
+        )
 
     if len(faces) == 0:
         st.warning("No face detected!")
@@ -299,7 +325,10 @@ if uploaded_file is not None:
         emotions_detected = []
         face_images = {}  # Store face images for feedback
         for (x, y, w, h) in faces:
+            x, y, w, h = expand_and_clip_box(x, y, w, h, img_w, img_h)
             face = gray[y:y+h, x:x+w]
+            if face.size == 0:
+                continue
             face = cv2.resize(face, (48, 48))
             face = face / 255.0
             face_for_model = np.reshape(face, (1, 48, 48, 1))

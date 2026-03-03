@@ -426,4 +426,5 @@ if uploaded_file is not None:
 
 # To run the app:
 # 1) Open PowerShell and navigate to the project directory
-# 2) Run: streamlit run project/app.py
+# 2) Execute this command:
+#    streamlit run project/app.py

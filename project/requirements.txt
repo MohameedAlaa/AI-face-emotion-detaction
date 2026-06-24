@@ -5,6 +5,8 @@ opencv-python-headless==4.9.0.80
 tensorflow-cpu==2.20.0
 # numpy 2.x breaks many ML packages (opencv, tensorflow); stay below 2
 numpy<2
+# Fix protobuf version mismatch with tensorflow-cpu 2.20.0
+protobuf>=4.0.0
 # lock pandas and Pillow to versions compatible with streamlit
 pandas==2.3.3
 Pillow==12.1.1
